@@ -7,77 +7,96 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from './api/axiosConfig'; // Importa nossa configuração
 
 export default function Index() {
-  const [usuario, setUsuario] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState(''); // 1. Novo estado para a mensagem de erro
   const router = useRouter();
 
   useEffect(() => {
     const verificarLogin = async () => {
-      const logado = await AsyncStorage.getItem('@loggedIn');
-      const onboardingFeito = await AsyncStorage.getItem('@onboardingDone');
-
-      if (logado === 'true') {
-        if (onboardingFeito === 'true') {
-          router.replace('/Home');
-        } else {
-          router.replace('/Tela01');
-        }
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        router.replace('/Home');
       }
     };
-
     verificarLogin();
   }, []);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage('Por favor, preencha e-mail e senha.');
+      return;
+    }
+
+    try {
+      const response = await axios.post('/auth/login', {
+        email,
+        password,
+      });
+
+      const { token } = response.data;
+      await AsyncStorage.setItem('token', token);
+
+      const onboardingFeito = await AsyncStorage.getItem('@onboardingDone');
+      router.replace(onboardingFeito === 'true' ? '/Home' : '/Tela01');
+
+    } catch (error) {
+      console.error('Erro no login:', error.response?.data || error.message);
+      const message = error.response?.data?.message || 'Falha ao fazer login. Tente novamente.';
+      setErrorMessage(message); // 2. Define a mensagem de erro no estado
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.logo}>SocialReset</Text>
       <Text style={styles.welcome}>Bem - Vindo</Text>
-
-      <Text style={styles.subtext}>já tem conta?</Text>
+      <Text style={styles.subtext}>Acesse sua conta</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="E-MAIL OU USUÁRIO"
-        onChangeText={setUsuario}
-        value={usuario}
+        placeholder="E-MAIL"
+        value={email}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        onChangeText={(text) => {
+          setEmail(text);
+          if (errorMessage) setErrorMessage(''); // Limpa o erro ao digitar
+        }}
       />
       <TextInput
         style={styles.input}
         placeholder="Senha"
         secureTextEntry
-        onChangeText={setSenha}
-        value={senha}
+        value={password}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (errorMessage) setErrorMessage(''); // Limpa o erro ao digitar
+        }}
       />
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={async () => {
-          // Simula login simples (em produção use validação real)
-          await AsyncStorage.setItem('@loggedIn', 'true');
-          const onboardingFeito = await AsyncStorage.getItem('@onboardingDone');
-          router.replace(onboardingFeito === 'true' ? '/Home' : '/Tela01');
-        }}
-      >
+      {/* 3. Exibe a mensagem de erro na tela */}
+      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Acessar</Text>
       </TouchableOpacity>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Ainda não tem conta?</Text>
-        <TouchableOpacity>
-          <Text style={styles.link} onPress={() => router.push('/Registro')}>
-            {' '}
-            Cadastre-se
-          </Text>
+        <TouchableOpacity onPress={() => router.push('/Registro')}>
+          <Text style={styles.link}> Cadastre-se</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -110,6 +129,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
+  },
+  // 4. Estilo para a mensagem de erro
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
+    textAlign: 'center',
   },
   button: {
     backgroundColor: '#007BFF',

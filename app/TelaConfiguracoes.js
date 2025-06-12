@@ -1,31 +1,25 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState, useEffect } from "react"; // Importa o useEffect
+import { Modal, Pressable, StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import axios from './api/axiosConfig'; // Importa o axios
 
+// O componente AnimatedOption continua o mesmo
 function AnimatedOption({ icon, title, description, onPress }) {
   const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
   return (
     <Pressable
-      onPressIn={() => {
-        scale.value = withSpring(0.95);
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1);
-      }}
+      onPressIn={() => { scale.value = withSpring(0.95); }}
+      onPressOut={() => { scale.value = withSpring(1); }}
       onPress={onPress}
       style={({ pressed }) => [styles.option, { opacity: pressed ? 0.7 : 1 }]}
     >
@@ -43,13 +37,36 @@ function AnimatedOption({ icon, title, description, onPress }) {
 export default function Configuracoes() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
+  const [user, setUser] = useState(null); // Estado para guardar os dados do usuário
+  const [loading, setLoading] = useState(true); // Estado de carregamento
+
+  // Função para buscar os dados do usuário na API
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        router.replace('/');
+        return;
+      }
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const response = await axios.get('/users/profile', config);
+      setUser(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar perfil para as configurações:", error.response?.data || error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Executa a busca ao montar a tela
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("@loggedIn");
-      await AsyncStorage.removeItem("@onboardingDone");
-      setModalVisible(false);
-      router.replace("/"); // volta para o login (index.js)
+      await AsyncStorage.removeItem("token");
+      router.replace("/");
     } catch (e) {
       console.error("Erro ao fazer logout:", e);
     }
@@ -59,7 +76,12 @@ export default function Configuracoes() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="person-circle-outline" size={60} color="#fff" />
-        <Text style={styles.username}>Nome do usuário</Text>
+        {/* Mostra o nome do usuário real ou um 'Carregando...' */}
+        {loading ? (
+          <ActivityIndicator color="#fff" style={{ marginTop: 8 }} />
+        ) : (
+          <Text style={styles.username}>{user ? user.username : 'Usuário'}</Text>
+        )}
       </View>
 
       <AnimatedOption
@@ -89,7 +111,7 @@ export default function Configuracoes() {
       />
 
       {/* Footer */}
-      <Pressable style={styles.footer} onPress={() => router.push("/home")}>
+      <Pressable style={styles.footer} onPress={() => router.push("/Home")}>
         <Ionicons name="home-outline" size={24} color="#fff" />
         <Text style={styles.footerText}>Tela inicial</Text>
       </Pressable>
@@ -137,6 +159,7 @@ const styles = StyleSheet.create({
   username: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: 'bold',
     marginTop: 8,
   },
   option: {

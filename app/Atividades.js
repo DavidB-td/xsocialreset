@@ -1,110 +1,129 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, Alert, TextInput } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from './api/axiosConfig';
 
-export default function Atividades() {
-  const [input, setInput] = useState('');
-  const [atividades, setAtividades] = useState([]);
+export default function AtividadesScreen() {
+  const [interesses, setInteresses] = useState([]);
+  const [newInterest, setNewInterest] = useState('');
   const router = useRouter();
 
-  const STORAGE_KEY = '@atividades';
+  const setAuthHeader = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      return true;
+    }
+    router.replace('/');
+    return false;
+  };
+
+  const fetchInteresses = async () => {
+    if (!(await setAuthHeader())) return;
+    try {
+      // Chama a rota correta de interesses
+      const response = await axios.get('/interests');
+      setInteresses(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar interesses:", error.response?.data || error.message);
+      Alert.alert('Erro', 'Não foi possível carregar os seus interesses.');
+    }
+  };
 
   useEffect(() => {
-    const checarLoginEAtividades = async () => {
-      const loggedIn = await AsyncStorage.getItem('@loggedIn');
-      if (loggedIn !== 'true') {
-        router.replace('/'); // Se não está logado, volta para login
-        return;
-      }
-      const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-      if (jsonValue != null) {
-        const lista = JSON.parse(jsonValue);
-        if (lista.length > 0) {
-          router.replace('/Home'); // pula as atividades se já tem algo
-        }
-      }
-    };
-    checarLoginEAtividades();
+    fetchInteresses();
   }, []);
 
-  // Carrega as atividades salvas
-  const carregarAtividades = async () => {
+  const addInterest = async () => {
+    if (newInterest.trim() === '') return;
+    if (!(await setAuthHeader())) return;
     try {
-      const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-      if (jsonValue != null) setAtividades(JSON.parse(jsonValue));
-    } catch (e) {
-      console.error('Erro ao carregar atividades:', e);
+      const interestData = {
+        title: newInterest,
+        description: 'Interesse adicionado pelo utilizador',
+        category: 'hobby',
+        duration: 0,
+      };
+      // Envia para a rota correta de interesses
+      const response = await axios.post('/interests', interestData);
+      // A resposta do backend agora é 'interest'
+      setInteresses(prev => [...prev, response.data.interest]);
+      setNewInterest('');
+    } catch (error) {
+      console.error("Erro ao adicionar interesse:", error.response?.data || error.message);
+      Alert.alert('Erro', 'Não foi possível guardar o seu novo interesse.');
     }
   };
 
-  // Salva as atividades atuais
-  const salvarAtividades = async (novaLista) => {
-    try {
-      const jsonValue = JSON.stringify(novaLista);
-      await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
-    } catch (e) {
-      console.error('Erro ao salvar atividades:', e);
-    }
+  const deleteInterest = async (interestId) => {
+    Alert.alert(
+      "Remover Interesse",
+      "Tem a certeza de que deseja remover este interesse?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sim, Remover",
+          style: 'destructive',
+          onPress: async () => {
+            if (!(await setAuthHeader())) return;
+            try {
+              // Chama a rota correta para deletar o interesse
+              await axios.delete(`/interests/${interestId}`);
+              setInteresses(prev => prev.filter(item => item._id !== interestId));
+            } catch (error) {
+              console.error("Erro ao eliminar interesse:", error.response?.data || error.message);
+              Alert.alert('Erro', 'Não foi possível remover o interesse.');
+            }
+          },
+        },
+      ]
+    );
   };
 
-  useEffect(() => {
-    carregarAtividades();
-  }, []);
-
-  useEffect(() => {
-    salvarAtividades(atividades);
-  }, [atividades]);
-
-  const adicionarAtividade = () => {
-    if (input.trim() === '') return;
-    setAtividades([...atividades, input.trim()]);
-    setInput('');
-  };
-
-  // Função para finalizar o onboarding e ir para a Home
-  const finalizar = async () => {
-    try {
-      await AsyncStorage.setItem('@onboardingDone', 'true');
-      router.replace('/Home'); // usar replace para não permitir voltar aqui
-    } catch (e) {
-      console.error('Erro ao salvar flag de onboarding:', e);
-    }
-  };
+  const irParaHome = () => router.replace('/Home');
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>SocialReset</Text>
-      <Text style={styles.subtitle}>Digite o que você gosta de fazer offline</Text>
-
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Jogar futebol"
-          placeholderTextColor="#aaa"
-          value={input}
-          onChangeText={setInput}
-        />
-        <TouchableOpacity onPress={adicionarAtividade} style={styles.addButton}>
-          <AntDesign name="pluscircleo" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
+      <StatusBar barStyle="light-content" />
       <FlatList
-        data={atividades}
-        keyExtractor={(item, index) => index.toString()}
+        data={interesses}
+        keyExtractor={item => item._id}
+        contentContainerStyle={styles.listContentContainer}
+        ListHeaderComponent={() => (
+          <>
+            <Text style={styles.title}>Meus Interesses</Text>
+            <Text style={styles.subtitle}>O que gosta de fazer offline?</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Jogar videogame"
+                placeholderTextColor="#aaa"
+                value={newInterest}
+                onChangeText={setNewInterest}
+              />
+              <TouchableOpacity style={styles.addButton} onPress={addInterest}>
+                <AntDesign name="plus" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
         renderItem={({ item }) => (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{item}</Text>
+          <View style={styles.activityItem}>
+            <Text style={styles.activityText}>{item.title}</Text>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => deleteInterest(item._id)}>
+              <AntDesign name="close" size={16} color="white" />
+            </TouchableOpacity>
           </View>
         )}
-        style={{ width: '100%', marginTop: 20 }}
+        ListFooterComponent={() => (
+          <TouchableOpacity style={styles.homeButton} onPress={irParaHome}>
+            <Text style={styles.homeButtonText}>Ir para a Home</Text>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={() => <Text style={styles.emptyText}>Ainda não adicionou nenhum interesse.</Text>}
       />
-
-      <TouchableOpacity style={styles.finalizarButton} onPress={finalizar}>
-        <Text style={styles.finalizarText}>Finalizar!</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -113,58 +132,86 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#2e2e2e',
-    padding: 20,
+  },
+  listContentContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
   title: {
     color: '#0b84f3',
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginVertical: 20,
   },
   subtitle: {
     color: '#fff',
     fontSize: 14,
-    marginBottom: 12,
+    marginTop: 20,
+    marginBottom: 10,
   },
-  inputRow: {
+  inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 20,
   },
   input: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 10,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontSize: 16,
     color: '#000',
+    marginRight: 10,
   },
   addButton: {
     backgroundColor: '#8b4dff',
-    padding: 8,
-    borderRadius: 6,
-  },
-  tag: {
-    backgroundColor: '#8b4dff',
-    alignSelf: 'flex-start',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginVertical: 4,
-  },
-  tagText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  finalizarButton: {
-    backgroundColor: '#8b4dff',
-    marginTop: 40,
-    paddingVertical: 14,
-    borderRadius: 6,
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  finalizarText: {
+  activityItem: {
+    backgroundColor: '#8b4dff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingLeft: 20,
+    paddingRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    width: '100%', // Força o item a ter a largura total, resolvendo o problema de clique
+  },
+  activityText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginRight: 10,
+    flex: 1,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  emptyText: {
+    color: '#aaa',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  homeButton: {
+    marginTop: 40,
+    backgroundColor: '#8b4dff',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  homeButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,

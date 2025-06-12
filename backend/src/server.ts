@@ -1,35 +1,31 @@
 import express from 'express';
 import connectDB from './config/db';
-import authRoutes from './routes/authRoutes';
-import reflectionRoutes from './routes/reflectionRoutes';
-import activityRoutes from './routes/activityRoutes';
-// import userRoutes from './routes/userRoutes';
-// import settingRoutes from './routes/settingRoutes';
+import cors from 'cors';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Rotas existentes e novas
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import interestRoutes from './routes/interestRoutes';
+import dailyTaskRoutes from './routes/dailyTaskRoutes';
+import usageRoutes from './routes/usageRoutes'; // <-- 1. IMPORTE AQUI
 
+dotenv.config();
 const app = express();
 
-// Conectar ao MongoDB
+// Conectar à Base de Dados
 connectDB();
 
-// Middleware para JSON
+// Middlewares
+app.use(cors());
 app.use(express.json());
 
 // Rotas
 app.use('/api/auth', authRoutes);
-app.use('/api/reflections', reflectionRoutes);
-app.use('/api/activities', activityRoutes);
-// app.use('/api/users', userRoutes);
-// oapp.use('/api/settings', settingRoutes);
-
-// Rota de teste
-app.get('/', (req, res) => {
-  res.json({ message: 'Bem-vindo à API do SocialReset!' });
-});
+app.use('/api/users', userRoutes);
+app.use('/api/interests', interestRoutes);
+app.use('/api/dailytasks', dailyTaskRoutes);
+app.use('/api/usage', usageRoutes); // <-- 2. ADICIONE ESTA LINHA
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Servidor a correr na porta ${PORT}`));

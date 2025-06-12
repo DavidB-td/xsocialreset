@@ -1,32 +1,83 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from './api/axiosConfig';
 
 export default function Home() {
+  const [detoxStartDate, setDetoxStartDate] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const router = useRouter()
+  const router = useRouter();
 
-  // Inicia o temporizador
+  // Efeito para buscar os dados do utilizador, corre apenas uma vez quando a tela monta
   useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          router.replace('/');
+          return;
+        }
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const response = await axios.get('/users/profile', config);
+        if (response.data.detoxStartDate) {
+          setDetoxStartDate(new Date(response.data.detoxStartDate));
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do utilizador:", error);
+      }
+    };
+
+    fetchUserData();
+  }, []); // A dependência vazia [] garante que isto corre apenas uma vez
+
+  // Efeito para gerir o temporizador. É ativado sempre que detoxStartDate muda.
+  useEffect(() => {
+    if (!detoxStartDate) {
+      setElapsedSeconds(0);
+      return;
+    }
     const interval = setInterval(() => {
-      setElapsedSeconds(prev => prev + 1);
-    }, 1000); // atualiza a cada segundo
+      const now = new Date();
+      const difference = now.getTime() - detoxStartDate.getTime();
+      setElapsedSeconds(Math.floor(difference / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [detoxStartDate]);
 
-    return () => clearInterval(interval); // limpa o intervalo ao sair
-  }, []);
 
-  // Função para resetar o tempo
-  const resetTimer = () => {
-    setElapsedSeconds(0);
+  // --- FUNÇÃO MODIFICADA ---
+  // Função para o botão de resetar, SEM o pop-up de confirmação para depuração
+  const handleResetTimer = async () => {
+    try {
+      console.log("[PASSO 1] A tentar resetar o temporizador diretamente...");
+      const token = await AsyncStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const response = await axios.post('/users/reset-timer', {}, config);
+      
+      console.log("[PASSO 2] Resposta da API recebida:", response.data);
+      
+      if (response.data && response.data.user && response.data.user.detoxStartDate) {
+          const newDate = new Date(response.data.user.detoxStartDate);
+          console.log("[PASSO 3] A definir a nova data de início:", newDate);
+          setDetoxStartDate(newDate);
+      } else {
+          console.error("[ERRO LÓGICO] A resposta da API não continha a data de início esperada.", response.data);
+      }
+
+    } catch (error) {
+      console.error("Erro detalhado ao resetar temporizador:", error.response?.data || error);
+      Alert.alert('Erro', 'Não foi possível resetar o temporizador. Verifique o console (F12).');
+    }
   };
 
-  // Converte segundos em dias, horas, minutos e segundos
   const days = Math.floor(elapsedSeconds / 86400);
   const hours = Math.floor((elapsedSeconds % 86400) / 3600);
   const minutes = Math.floor((elapsedSeconds % 3600) / 60);
   const seconds = elapsedSeconds % 60;
+  const totalHours = Math.floor(elapsedSeconds / 3600);
+
 
   return (
     <View style={styles.container}>
@@ -34,7 +85,9 @@ export default function Home() {
       <View style={styles.header}>
         <Ionicons name="menu" size={28} color="#fff" />
         <Text style={styles.headerText}>Home</Text>
-        <Ionicons onPress={() => router.push('/TelaUsuario')} name="person-circle-outline" size={28} color="#fff"  />
+        <TouchableOpacity onPress={() => router.push('/TelaUsuario')}>
+            <Ionicons name="person-circle-outline" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Temporizador */}
@@ -58,7 +111,7 @@ export default function Home() {
       </View>
 
       {/* Botão de Resetar */}
-      <TouchableOpacity style={styles.resetButton} onPress={resetTimer}>
+      <TouchableOpacity style={styles.resetButton} onPress={handleResetTimer}>
         <Text style={styles.resetButtonText}>Resetar Tempo</Text>
       </TouchableOpacity>
 
@@ -66,7 +119,7 @@ export default function Home() {
       <View style={styles.actionRow}>
         <FontAwesome name="calendar" size={28} color="#00b4fc" />
         <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionText}>{hours + minutes / 60} horas sem utilizar redes sociais</Text>
+          <Text style={styles.actionText}>{totalHours} horas sem utilizar redes sociais</Text>
         </TouchableOpacity>
       </View>
 
@@ -84,14 +137,14 @@ export default function Home() {
           <Text style={styles.footerText}>Tela inicial</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.centerButton}>
+        <TouchableOpacity style={styles.centerButton} onPress={handleResetTimer}>
           <Ionicons name="add" size={36} color="#000" />
           <Text style={styles.footerTextCenter}>Começar!</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.footerButton}>
-          <MaterialCommunityIcons onPress={() => router.push('/TelaAtividades')} name="target" size={24} color="#fff" />
-          <Text  style={styles.footerText}>Metas</Text>
+        <TouchableOpacity style={styles.footerButton} onPress={() => router.push('/TelaAtividades')}>
+            <MaterialCommunityIcons name="target" size={24} color="#fff" />
+            <Text style={styles.footerText}>Metas</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -185,7 +238,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   footerTextCenter: {
-    color: '#fff',
+    color: '#fff', // Este texto não vai aparecer porque o fundo do ícone é branco
     fontSize: 12,
     textAlign: 'center',
     marginTop: 6,

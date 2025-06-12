@@ -6,6 +6,7 @@ interface IUser extends Document {
   email: string;
   password: string;
   createdAt: Date;
+  detoxStartDate?: Date; // <-- CAMPO ADICIONADO AQUI
 }
 
 const userSchema = new Schema<IUser>({
@@ -13,6 +14,7 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
+  detoxStartDate: { type: Date, required: false }, // <-- CAMPO ADICIONADO AQUI
 });
 
 export default mongoose.model<IUser>('User', userSchema);
