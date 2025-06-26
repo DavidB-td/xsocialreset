@@ -12,6 +12,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "app/components/ProtectedRoute.js"  ]
+    "expo-env.d.ts",
+    "app/components/ProtectedRoute.js"
+  ]
 }

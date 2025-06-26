@@ -10,12 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from './api/axiosConfig'; // Importa nossa configuração
+import axios from './api/axiosConfig'; // sua configuração axios
 
 export default function Index() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState(''); // 1. Novo estado para a mensagem de erro
+  const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function Index() {
     } catch (error) {
       console.error('Erro no login:', error.response?.data || error.message);
       const message = error.response?.data?.message || 'Falha ao fazer login. Tente novamente.';
-      setErrorMessage(message); // 2. Define a mensagem de erro no estado
+      setErrorMessage(message);
     }
   };
 
@@ -67,7 +67,7 @@ export default function Index() {
         autoCapitalize="none"
         onChangeText={(text) => {
           setEmail(text);
-          if (errorMessage) setErrorMessage(''); // Limpa o erro ao digitar
+          if (errorMessage) setErrorMessage('');
         }}
       />
       <TextInput
@@ -77,11 +77,10 @@ export default function Index() {
         value={password}
         onChangeText={(text) => {
           setPassword(text);
-          if (errorMessage) setErrorMessage(''); // Limpa o erro ao digitar
+          if (errorMessage) setErrorMessage('');
         }}
       />
 
-      {/* 3. Exibe a mensagem de erro na tela */}
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
@@ -130,7 +129,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 12,
   },
-  // 4. Estilo para a mensagem de erro
   errorText: {
     color: 'red',
     marginBottom: 10,

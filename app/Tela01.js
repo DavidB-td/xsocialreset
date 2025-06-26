@@ -1,10 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';  
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 export default function Tela01() {
-  
-  const router = useRouter();  
+  const router = useRouter();
 
   return (
     <View style={styles.container}>
@@ -15,7 +13,7 @@ export default function Tela01() {
         Desconecte para reconectar com o que realmente importa.
       </Text>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/Notificacao')} >
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/Notificacao')}>
         <Text style={styles.buttonText}>Começar!</Text>
       </TouchableOpacity>
     </View>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { 
+  View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, Alert, ActivityIndicator 
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,7 +12,7 @@ export default function DailyGoalsScreen() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Cria uma chave única para cada dia para guardar as metas no dispositivo
+  // Chave única por dia para salvar metas localmente
   const getTodayKey = () => {
     const today = new Date();
     return `@daily-tasks-${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
@@ -23,8 +25,7 @@ export default function DailyGoalsScreen() {
       if (savedGoals) {
         setGoals(JSON.parse(savedGoals));
       } else {
-        // Se não há metas para hoje, busca novas na API
-        const response = await axios.get('/dailytasks/random'); // <-- Chama a nova rota
+        const response = await axios.get('/dailytasks/random');
         const newGoals = response.data.map(goal => ({ ...goal, completed: false }));
         await AsyncStorage.setItem(todayKey, JSON.stringify(newGoals));
         setGoals(newGoals);
@@ -46,7 +47,6 @@ export default function DailyGoalsScreen() {
       goal._id === id ? { ...goal, completed: !goal.completed } : goal
     );
     setGoals(updatedGoals);
-    // Salva o progresso no armazenamento do dispositivo
     await AsyncStorage.setItem(getTodayKey(), JSON.stringify(updatedGoals));
   };
 
@@ -57,7 +57,7 @@ export default function DailyGoalsScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color="#42A5F5" />
-        <Text style={{color: '#fff', marginTop: 10}}>A buscar as suas metas do dia...</Text>
+        <Text style={{ color: '#fff', marginTop: 10 }}>Buscando suas metas do dia...</Text>
       </View>
     );
   }
@@ -84,7 +84,11 @@ export default function DailyGoalsScreen() {
             <View style={[styles.statusCircle, item.completed ? styles.completed : styles.pending]} />
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>Não foi possível carregar as metas de hoje. Verifique a sua conexão ou tente mais tarde.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>
+            Não foi possível carregar as metas de hoje. Verifique a sua conexão ou tente mais tarde.
+          </Text>
+        }
       />
 
       <View style={styles.footer}>
@@ -118,6 +122,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
+    marginLeft: 10,
   },
   goalList: {
     padding: 16,
@@ -168,5 +173,5 @@ const styles = StyleSheet.create({
     color: '#aaa',
     textAlign: 'center',
     marginTop: 50,
-  }
+  },
 });

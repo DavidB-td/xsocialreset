@@ -1,6 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Notificacoes() {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function Notificacoes() {
         </Text>
       </View>
 
-      <TouchableOpacity onPress={() => router.push('/Atividades')} style={styles.button} >
+      <TouchableOpacity onPress={() => router.push('/Atividades')} style={styles.button}>
         <Text style={styles.buttonText}>Permitir</Text>
       </TouchableOpacity>
     </View>

@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 
 export default function ConfiguracoesRastreamento() {
   const [rastreamento, setRastreamento] = useState(true);
@@ -12,6 +11,23 @@ export default function ConfiguracoesRastreamento() {
   const router = useRouter();
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const rast = await AsyncStorage.getItem('rastreamento');
+      if (rast !== null) setRastreamento(rast === 'true');
+      const offline = await AsyncStorage.getItem('atividadesOffline');
+      if (offline !== null) setAtividadesOffline(offline === 'true');
+      const descanso = await AsyncStorage.getItem('modoDescanso');
+      if (descanso !== null) setModoDescanso(descanso === 'true');
+    };
+    loadSettings();
+  }, []);
+
+  const toggleSwitch = (setter, key) => async (value) => {
+    setter(value);
+    await AsyncStorage.setItem(key, value.toString());
+  };
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -28,23 +44,30 @@ export default function ConfiguracoesRastreamento() {
     }).start();
   };
 
-  const toggleSwitch = (setter) => (value) => setter(value);
+  const pararTodos = async () => {
+    setRastreamento(false);
+    setAtividadesOffline(false);
+    setModoDescanso(false);
+    await AsyncStorage.multiSet([
+      ['rastreamento', 'false'],
+      ['atividadesOffline', 'false'],
+      ['modoDescanso', 'false'],
+    ]);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Ionicons onPress={() => router.push('/TelaConfiguracoes')} style={styles.icon} name="arrow-back" size={24} color="#fff" />
         <Ionicons name="person-circle-outline" size={48} color="#fff" />
         <Text style={styles.username}>Nome do usuário</Text>
       </View>
 
-      {/* Opções com switches */}
       <View style={styles.option}>
         <Text style={styles.optionText}>Rastrear tempo diário em apps</Text>
         <Switch
           value={rastreamento}
-          onValueChange={toggleSwitch(setRastreamento)}
+          onValueChange={toggleSwitch(setRastreamento, 'rastreamento')}
           trackColor={{ false: '#767577', true: '#7447FB' }}
           thumbColor={rastreamento ? '#fff' : '#f4f3f4'}
         />
@@ -54,7 +77,7 @@ export default function ConfiguracoesRastreamento() {
         <Text style={styles.optionText}>Sugerir atividades offline (Localização)</Text>
         <Switch
           value={atividadesOffline}
-          onValueChange={toggleSwitch(setAtividadesOffline)}
+          onValueChange={toggleSwitch(setAtividadesOffline, 'atividadesOffline')}
           trackColor={{ false: '#767577', true: '#7447FB' }}
           thumbColor={atividadesOffline ? '#fff' : '#f4f3f4'}
         />
@@ -64,17 +87,17 @@ export default function ConfiguracoesRastreamento() {
         <Text style={styles.optionText}>Modo descanso após 22h</Text>
         <Switch
           value={modoDescanso}
-          onValueChange={toggleSwitch(setModoDescanso)}
+          onValueChange={toggleSwitch(setModoDescanso, 'modoDescanso')}
           trackColor={{ false: '#767577', true: '#8b4dff' }}
           thumbColor={modoDescanso ? '#fff' : '#f4f3f4'}
         />
       </View>
 
-      {/* Botão de parar todos com animação */}
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <Pressable
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
+          onPress={pararTodos}
           style={styles.stopButton}
         >
           <Text style={styles.stopButtonText}>Parar todos os rastreamentos</Text>
@@ -91,21 +114,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   icon: {
-     position: 'absolute',
-    top: 0,
-    left: 0,
-    // opcional para espaçamento
-    padding: 10,
-    
+    marginRight: 16,
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 40,
   },
   username: {
     color: '#fff',
     fontSize: 14,
-    marginTop: 4,
+    marginLeft: 10,
   },
   option: {
     backgroundColor: '#3e3e3e',

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from './api/axiosConfig';
+import Toast from 'react-native-toast-message';
 
 export default function AtividadesScreen() {
   const [interesses, setInteresses] = useState([]);
@@ -23,12 +24,13 @@ export default function AtividadesScreen() {
   const fetchInteresses = async () => {
     if (!(await setAuthHeader())) return;
     try {
-      // Chama a rota correta de interesses
       const response = await axios.get('/interests');
       setInteresses(response.data);
     } catch (error) {
-      console.error("Erro ao buscar interesses:", error.response?.data || error.message);
-      Alert.alert('Erro', 'Não foi possível carregar os seus interesses.');
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao carregar interesses',
+      });
     }
   };
 
@@ -46,84 +48,79 @@ export default function AtividadesScreen() {
         category: 'hobby',
         duration: 0,
       };
-      // Envia para a rota correta de interesses
       const response = await axios.post('/interests', interestData);
-      // A resposta do backend agora é 'interest'
       setInteresses(prev => [...prev, response.data.interest]);
       setNewInterest('');
+
+      Toast.show({
+        type: 'success',
+        text1: 'Interesse adicionado!',
+      });
     } catch (error) {
-      console.error("Erro ao adicionar interesse:", error.response?.data || error.message);
-      Alert.alert('Erro', 'Não foi possível guardar o seu novo interesse.');
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao adicionar interesse',
+      });
     }
   };
 
   const deleteInterest = async (interestId) => {
-    Alert.alert(
-      "Remover Interesse",
-      "Tem a certeza de que deseja remover este interesse?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sim, Remover",
-          style: 'destructive',
-          onPress: async () => {
-            if (!(await setAuthHeader())) return;
-            try {
-              // Chama a rota correta para deletar o interesse
-              await axios.delete(`/interests/${interestId}`);
-              setInteresses(prev => prev.filter(item => item._id !== interestId));
-            } catch (error) {
-              console.error("Erro ao eliminar interesse:", error.response?.data || error.message);
-              Alert.alert('Erro', 'Não foi possível remover o interesse.');
-            }
-          },
-        },
-      ]
-    );
-  };
+    if (!(await setAuthHeader())) return;
+    try {
+      await axios.delete(`/interests/${interestId}`);
+      setInteresses(prev => prev.filter(item => item._id !== interestId));
 
-  const irParaHome = () => router.replace('/Home');
+      Toast.show({
+        type: 'success',
+        text1: 'Interesse removido!',
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Erro ao remover interesse',
+      });
+    }
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+      <Text style={styles.title}>Meus Interesses</Text>
+      <Text style={styles.subtitle}>O que você gosta de fazer offline?</Text>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Tocar violão"
+          placeholderTextColor="#aaa"
+          value={newInterest}
+          onChangeText={setNewInterest}
+        />
+        <TouchableOpacity style={styles.addButton} onPress={addInterest}>
+          <AntDesign name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={interesses}
         keyExtractor={item => item._id}
-        contentContainerStyle={styles.listContentContainer}
-        ListHeaderComponent={() => (
-          <>
-            <Text style={styles.title}>Meus Interesses</Text>
-            <Text style={styles.subtitle}>O que gosta de fazer offline?</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Jogar videogame"
-                placeholderTextColor="#aaa"
-                value={newInterest}
-                onChangeText={setNewInterest}
-              />
-              <TouchableOpacity style={styles.addButton} onPress={addInterest}>
-                <AntDesign name="plus" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
         renderItem={({ item }) => (
-          <View style={styles.activityItem}>
-            <Text style={styles.activityText}>{item.title}</Text>
-            <TouchableOpacity style={styles.deleteButton} onPress={() => deleteInterest(item._id)}>
-              <AntDesign name="close" size={16} color="white" />
+          <View style={styles.item}>
+            <Text style={styles.itemText}>{item.title}</Text>
+            <TouchableOpacity onPress={() => deleteInterest(item._id)}>
+              <AntDesign name="close" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         )}
-        ListFooterComponent={() => (
-          <TouchableOpacity style={styles.homeButton} onPress={irParaHome}>
-            <Text style={styles.homeButtonText}>Ir para a Home</Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={() => <Text style={styles.emptyText}>Ainda não adicionou nenhum interesse.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>Nenhum interesse adicionado ainda.</Text>
+        }
+        contentContainerStyle={{ paddingBottom: 30 }}
       />
+
+      <TouchableOpacity style={styles.buttonHome} onPress={() => router.push('/Home')}>
+        <Text style={styles.buttonText}>Voltar para a Home</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -132,37 +129,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#2e2e2e',
-  },
-  listContentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    padding: 20,
   },
   title: {
     color: '#0b84f3',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   subtitle: {
     color: '#fff',
     fontSize: 14,
-    marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   input: {
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginRight: 8,
     color: '#000',
-    marginRight: 10,
   },
   addButton: {
     backgroundColor: '#8b4dff',
@@ -171,49 +163,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  activityItem: {
+  item: {
     backgroundColor: '#8b4dff',
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingLeft: 20,
-    paddingRight: 12,
+    padding: 12,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
-    width: '100%', // Força o item a ter a largura total, resolvendo o problema de clique
   },
-  activityText: {
+  itemText: {
     color: '#fff',
-    fontWeight: '600',
     fontSize: 16,
-    marginRight: 10,
     flex: 1,
   },
-  deleteButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
   emptyText: {
-    color: '#aaa',
+    color: '#ccc',
     textAlign: 'center',
     marginTop: 40,
   },
-  homeButton: {
-    marginTop: 40,
+  buttonHome: {
+    marginTop: 20,
     backgroundColor: '#8b4dff',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
-  homeButtonText: {
+  buttonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
   },
 });
